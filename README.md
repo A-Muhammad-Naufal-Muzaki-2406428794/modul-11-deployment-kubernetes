@@ -31,3 +31,15 @@ Option `-n` pada `kubectl` digunakan untuk menentukan namespace tempat command d
 Ketika saya menjalankan `kubectl get pods` tanpa option `-n`, Kubernetes menggunakan namespace default. Karena itu, output menampilkan resource yang saya buat sendiri, seperti Pod dan Service dari `hello-node`.
 
 Namun, ketika saya menjalankan `kubectl get pods,services -n kube-system`, Kubernetes menampilkan resource dari namespace `kube-system`. Namespace ini berisi komponen internal Kubernetes dan Minikube, seperti CoreDNS, metrics-server, dan service internal lainnya. Output tersebut tidak menampilkan Pod atau Service `hello-node` karena resource tersebut dibuat di namespace default, bukan di namespace `kube-system`.
+
+## Tutorial: Rolling Update Deployment
+
+Pada bagian ini saya membuat Deployment baru bernama `spring-petclinic-rest` menggunakan image `docker.io/springcommunity/spring-petclinic-rest:3.0.2`. Setelah Deployment berhasil dibuat, saya mengecek Pod dan log aplikasi untuk memastikan aplikasi berjalan dengan baik. Dari log aplikasi, web server Spring Boot berjalan pada port 9966.
+
+Saya kemudian membuat Service bertipe `LoadBalancer` untuk Deployment tersebut menggunakan port 9966. Service ini memungkinkan aplikasi Spring Petclinic REST diakses dari luar cluster melalui command `minikube service spring-petclinic-rest`.
+
+Setelah aplikasi berhasil dijalankan, saya mencoba melakukan scaling Deployment menjadi 4 replica menggunakan command `kubectl scale deployment spring-petclinic-rest --replicas=4`. Setelah scaling, jumlah Pod Spring Petclinic REST bertambah menjadi 4 dan semuanya berjalan dengan status `Running`.
+
+Kemudian saya melakukan rolling update dengan mengganti image dari versi `3.0.2` menjadi `3.2.1` menggunakan command `kubectl set image`. Kubernetes mengganti Pod lama secara bertahap dengan Pod baru yang menggunakan image versi terbaru. Setelah proses rollout selesai, Deployment berhasil menggunakan image `3.2.1`.
+
+Saya juga mencoba mengganti image ke versi yang tidak tersedia, yaitu `4.0`. Beberapa Pod gagal berjalan dan menampilkan status seperti `ImagePullBackOff`. Hal ini terjadi karena Kubernetes tidak dapat menarik image dengan tag tersebut dari container registry. Setelah itu, saya menggunakan `kubectl rollout undo` untuk mengembalikan Deployment ke versi terakhir yang berhasil, yaitu `3.2.1`.
