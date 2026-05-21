@@ -51,3 +51,39 @@ Pada bagian ini saya mengekspor konfigurasi Deployment dan Service dari cluster 
 Setelah file manifest dibuat, saya mencoba menghapus cluster Minikube menggunakan `minikube delete`, lalu membuat ulang cluster dengan `minikube start`. Kemudian saya menjalankan ulang aplikasi menggunakan `kubectl apply -f deployment.yaml` dan `kubectl apply -f service.yaml`.
 
 Dengan menggunakan manifest file, proses deployment menjadi lebih mudah diulang karena konfigurasi aplikasi sudah terdokumentasi dalam file YAML. Saya tidak perlu lagi menjalankan semua command manual satu per satu dari awal.
+
+## Reflection on Rolling Update & Kubernetes Manifest File
+
+### 1. What is the difference between Rolling Update and Recreate deployment strategy?
+
+Rolling Update dan Recreate adalah dua strategi deployment yang memiliki cara kerja berbeda dalam mengganti versi aplikasi. Pada strategi Rolling Update, Kubernetes mengganti Pod lama dengan Pod baru secara bertahap. Artinya, sebagian Pod lama tetap berjalan ketika Pod baru sedang dibuat, sehingga aplikasi masih dapat melayani request selama proses update berlangsung. Strategi ini cocok digunakan untuk aplikasi yang membutuhkan ketersediaan tinggi dan ingin mengurangi downtime saat deployment.
+
+Sementara itu, pada strategi Recreate, Kubernetes akan menghentikan semua Pod lama terlebih dahulu sebelum membuat Pod baru. Karena semua Pod lama dimatikan sebelum versi baru dijalankan, terdapat periode ketika aplikasi tidak tersedia. Hal ini dapat menyebabkan downtime, tetapi strategi ini lebih sederhana dan berguna ketika versi lama dan versi baru aplikasi tidak boleh berjalan bersamaan. Dari percobaan ini, saya memahami bahwa Rolling Update lebih aman untuk menjaga availability aplikasi, sedangkan Recreate lebih cocok untuk kondisi yang membutuhkan restart bersih atau perubahan besar yang tidak kompatibel dengan versi sebelumnya.
+
+### 2. Try deploying the Spring Petclinic REST using Recreate deployment strategy and document your attempt.
+
+Saya mencoba melakukan deployment Spring Petclinic REST menggunakan strategi Recreate dengan membuat manifest Deployment terpisah bernama `deployment-recreate.yaml`. Pada manifest tersebut, saya mengatur strategi deployment menjadi `type: Recreate`. Saya juga membuat manifest Service terpisah bernama `service-recreate.yaml` agar deployment dengan strategi Recreate dapat diakses tanpa bentrok dengan deployment Spring Petclinic REST sebelumnya yang menggunakan Rolling Update.
+
+Setelah manifest dibuat, saya menjalankan `kubectl apply -f deployment-recreate.yaml` dan `kubectl apply -f service-recreate.yaml`. Kemudian saya memverifikasi hasilnya dengan menjalankan `kubectl get deployments`, `kubectl get pods`, dan `kubectl get services`. Deployment baru berhasil dibuat, Pod berhasil berjalan dengan status `Running`, dan Service berhasil tersedia dengan tipe `LoadBalancer`. Aplikasi juga dapat diakses menggunakan `minikube service spring-petclinic-rest-recreate`.
+
+Untuk mengamati perilaku Recreate, saya mencoba mengganti image aplikasi menggunakan `kubectl set image`. Ketika proses update berjalan, saya melihat bahwa Pod lama dihentikan terlebih dahulu sebelum Pod baru dibuat. Perilaku ini berbeda dari Rolling Update yang mengganti Pod secara bertahap. Dari percobaan ini, saya memahami bahwa strategi Recreate memang lebih sederhana, tetapi memiliki risiko downtime karena tidak ada Pod yang berjalan saat proses pergantian versi berlangsung.
+
+### 3. Prepare different manifest files for executing Recreate deployment strategy.
+
+Saya menyiapkan manifest file yang berbeda untuk menjalankan strategi Recreate. File yang saya buat adalah `deployment-recreate.yaml` dan `service-recreate.yaml`. File `deployment-recreate.yaml` berisi konfigurasi Deployment untuk Spring Petclinic REST dengan strategi deployment Recreate. Perbedaan utama dengan `deployment.yaml` adalah pada bagian strategi deployment, yaitu manifest Rolling Update menggunakan `strategy.type: RollingUpdate`, sedangkan manifest Recreate menggunakan `strategy.type: Recreate`.
+
+Saya juga menggunakan nama resource dan label yang berbeda, yaitu `spring-petclinic-rest-recreate`, agar tidak terjadi konflik dengan Deployment dan Service Spring Petclinic REST yang sudah dibuat sebelumnya. Service pada `service-recreate.yaml` menggunakan selector yang sesuai dengan label Pod dari Deployment Recreate. Dengan begitu, Service dapat meneruskan traffic ke Pod yang benar. Pemisahan manifest ini membuat konfigurasi Rolling Update dan Recreate lebih jelas, mudah diuji, dan mudah dibandingkan.
+
+### 4. What do you think are the benefits of using Kubernetes manifest files? Recall your experience in deploying the app manually and compare it to your experience when deploying the same app by applying the manifest files (i.e., invoking `kubectl apply -f` command) to the cluster.
+
+Menurut saya, manfaat utama menggunakan Kubernetes manifest files adalah deployment menjadi lebih terstruktur, konsisten, dan mudah diulang. Saat melakukan deployment secara manual, saya harus menjalankan banyak command seperti `kubectl create deployment`, `kubectl expose deployment`, `kubectl scale`, dan `kubectl set image`. Cara manual ini membantu saya memahami proses dasar Kubernetes, tetapi berisiko menyebabkan kesalahan jika ada command yang terlupa atau salah diketik.
+
+Dengan manifest file, konfigurasi aplikasi seperti nama Deployment, jumlah replica, image container, port, Service, dan strategi deployment dapat ditulis secara deklaratif di dalam file YAML. Setelah itu, saya hanya perlu menjalankan `kubectl apply -f deployment.yaml` dan `kubectl apply -f service.yaml` untuk membuat resource yang sama. Hal ini membuat proses deployment lebih praktis dan repeatable.
+
+Manifest file juga memudahkan dokumentasi karena seluruh konfigurasi deployment tersimpan di repository Git. Jika ada perubahan konfigurasi, perubahan tersebut dapat dilacak melalui commit. Selain itu, TA atau orang lain dapat mencoba menjalankan aplikasi di Minikube mereka hanya dengan menggunakan file manifest yang sama. Dibandingkan deployment manual, penggunaan manifest file terasa lebih cocok untuk proyek nyata karena lebih mudah dibagikan, diuji ulang, dan dipelihara.
+
+### 5. (Optional) Do the same tutorial steps, but on a managed Kubernetes cluster (e.g., GCP). You need to provision a Kubernetes cluster on Google Cloud Platform. Then, re-run the tutorial steps (Hello Minikube and Rolling Update) on the remote cluster. Document your attempt and highlight the differences and any issues you encountered.
+
+Saya tidak mengerjakan bagian opsional menggunakan managed Kubernetes cluster seperti Google Kubernetes Engine. Pada pengerjaan modul ini, saya berfokus pada bagian wajib menggunakan Minikube, yaitu menjalankan Hello Minikube, membuat Deployment dan Service, mengaktifkan metrics-server, melakukan Rolling Update, mencoba rollback, membuat Kubernetes manifest files, serta mencoba strategi Recreate.
+
+Meskipun tidak menjalankan bagian opsional, saya memahami bahwa deployment pada managed Kubernetes cluster akan memiliki beberapa perbedaan dibandingkan Minikube. Pada Minikube, cluster berjalan secara lokal di komputer saya, sedangkan pada managed Kubernetes cluster, cluster berjalan di infrastructure cloud. Service bertipe LoadBalancer pada cloud juga dapat memperoleh external IP sungguhan, sedangkan pada Minikube akses biasanya dilakukan melalui bantuan `minikube service`. Selain itu, penggunaan managed cluster kemungkinan membutuhkan konfigurasi tambahan seperti akun cloud, billing, provisioning cluster, pengaturan kubectl context, dan pengelolaan resource cloud.
