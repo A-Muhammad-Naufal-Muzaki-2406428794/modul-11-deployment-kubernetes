@@ -43,3 +43,11 @@ Setelah aplikasi berhasil dijalankan, saya mencoba melakukan scaling Deployment 
 Kemudian saya melakukan rolling update dengan mengganti image dari versi `3.0.2` menjadi `3.2.1` menggunakan command `kubectl set image`. Kubernetes mengganti Pod lama secara bertahap dengan Pod baru yang menggunakan image versi terbaru. Setelah proses rollout selesai, Deployment berhasil menggunakan image `3.2.1`.
 
 Saya juga mencoba mengganti image ke versi yang tidak tersedia, yaitu `4.0`. Beberapa Pod gagal berjalan dan menampilkan status seperti `ImagePullBackOff`. Hal ini terjadi karena Kubernetes tidak dapat menarik image dengan tag tersebut dari container registry. Setelah itu, saya menggunakan `kubectl rollout undo` untuk mengembalikan Deployment ke versi terakhir yang berhasil, yaitu `3.2.1`.
+
+## Kubernetes Manifest Files
+
+Pada bagian ini saya mengekspor konfigurasi Deployment dan Service dari cluster Kubernetes menjadi file manifest YAML. File `deployment.yaml` berisi definisi Deployment untuk aplikasi Spring Petclinic REST, sedangkan file `service.yaml` berisi definisi Service bertipe LoadBalancer.
+
+Setelah file manifest dibuat, saya mencoba menghapus cluster Minikube menggunakan `minikube delete`, lalu membuat ulang cluster dengan `minikube start`. Kemudian saya menjalankan ulang aplikasi menggunakan `kubectl apply -f deployment.yaml` dan `kubectl apply -f service.yaml`.
+
+Dengan menggunakan manifest file, proses deployment menjadi lebih mudah diulang karena konfigurasi aplikasi sudah terdokumentasi dalam file YAML. Saya tidak perlu lagi menjalankan semua command manual satu per satu dari awal.
